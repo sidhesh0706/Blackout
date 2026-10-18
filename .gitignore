@@ -1,0 +1,11 @@
+.data/
+.env
+__pycache__/
+*.pyc
+.venv/
+.impeccable/review/
+.impeccable/cache/
+.impeccable/critique/
+package-lock.json
+package.json
+node_modules/
