@@ -71,7 +71,7 @@ The Challenge lab runs eight independently specified scenarios. Every scenario r
 
 ![Observed results for all eight challenge scenarios](docs/screenshots/challenge-lab.png)
 
-**Local validation:** 10 integration tests pass, including the eight-scenario matrix. Browser checks confirmed the PASS → FAIL → PASS workflow, 8/8 expected scenario verdicts, no page JavaScript exceptions, and no document overflow at a 390px viewport. These are synthetic functional checks, not production accuracy measurements. GitHub Actions reruns backend tests on Python 3.11 and 3.13.
+**Local validation:** 11 integration tests pass, including the eight-scenario matrix. Browser checks confirmed the PASS → FAIL → PASS workflow, 8/8 expected scenario verdicts, no page JavaScript exceptions, and no document overflow at a 390px viewport. These are synthetic functional checks, not production accuracy measurements. GitHub Actions reruns backend tests on Python 3.11 and 3.13.
 
 ## AI interpretation and independent validation
 
@@ -174,3 +174,7 @@ Typography uses Manrope and Space Grotesk, distributed under the SIL Open Font L
 <img src="docs/screenshots/mobile.png" alt="Blackout's stacked mobile recovery workspace" width="390">
 
 </details>
+
+### Account-disable evidence
+
+A denied credential alone cannot prove that an account is disabled. The local verifier also reads the account enabled flag through a trusted SQLite adapter. An enabled incident account fails the disable requirement even if the probe credential is stale. Missing or unreadable account-state evidence cannot establish PASS. This trust model is specific to the prototype; production integrations need equivalent authoritative application evidence. The HTTP regression test covers a rotated credential and missing account state.

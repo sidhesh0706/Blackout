@@ -25,7 +25,7 @@ The laptop demonstration includes an actual SQLite restore, inspectable request 
 7. State “optional live Gemini adapter; local rule baseline available.” Do not claim live model accuracy or a completed AI benchmark without configuring a key and running that evaluation.
 8. Keep PASS / FAIL / UNVERIFIED. PASS applies only to the declared checks.
 9. Replace the planned-demo list with the actual containment-failure screenshot and the sequence: real restore → HTTP 200 for incident subject → approved correction → HTTP 403 plus legitimate HTTP 201.
-10. Replace the planned-fixture bar chart with a compact expected/observed table. All eight synthetic scenarios match expectations locally. Also state 10 integration tests passed; this is not a production accuracy claim.
+10. Replace the planned-fixture bar chart with a compact expected/observed table. All eight synthetic scenarios match expectations locally. Also state 11 integration tests passed; this is not a production accuracy claim.
 11. Add the operational use: “Run before returning a restored application to service.” Keep external SOC/backup integrations as future work.
 12. Add the repository URL, team details and a short local-start command. Describe current scope: one app, two identities, SQLite snapshots, independent evidence, repeatable HTTP probes.
 

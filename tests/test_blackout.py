@@ -7,7 +7,7 @@ import unittest
 from urllib.error import HTTPError
 from urllib.request import HTTPCookieProcessor, Request, build_opener
 
-from server import Server
+from server import Server, SUBJECT, connection, key_hash
 
 
 class BlackoutIntegrationTests(unittest.TestCase):
@@ -54,6 +54,29 @@ class BlackoutIntegrationTests(unittest.TestCase):
         self.assertEqual(fixed["runs"][-1]["verdict"], "PASS")
         self.assertEqual(fixed["runs"][-1]["traces"][0]["status"], 403)
         self.assertEqual(fixed["runs"][-1]["traces"][-1]["status"], 201)
+
+    def test_rotated_credential_cannot_prove_account_disabled(self):
+        self.call("/api/restore", {})
+        # The fixture modifies the isolated application's database; verification
+        # and both credential attempts still use actual HTTP endpoints.
+        session_id = next(cookie.value for handler in self.client.handlers
+                          if isinstance(handler, HTTPCookieProcessor)
+                          for cookie in handler.cookiejar)
+        lab = self.server.sessions[session_id]
+        replacement_key = "synthetic-rotated-credential"
+        with connection(lab.db) as db:
+            db.execute("UPDATE users SET key_hash=? WHERE id=?", (key_hash(replacement_key), SUBJECT))
+        self.call("/lab/login", {"user": SUBJECT, "key": "synthetic-compromised-key-7"}, 403)
+        self.call("/lab/login", {"user": SUBJECT, "key": replacement_key})
+        run = self.call("/api/verify", {})["runs"][-1]
+        self.assertEqual(run["verdict"], "FAIL")
+        self.assertEqual(run["traces"][0]["status"], 403)
+        self.assertTrue(run["account_state_evidence"]["enabled"])
+        self.assertEqual(run["checks"][-1]["verdict"], "PASS")
+        # Unknown account state cannot establish disablement either.
+        with connection(lab.db) as db:
+            db.execute("DELETE FROM users WHERE id=?", (SUBJECT,))
+        self.assertEqual(self.call("/api/verify", {})["runs"][-1]["verdict"], "UNVERIFIED")
 
     def test_eight_scenarios(self):
         for scenario, expected in [("contained", "PASS"), ("restored", "FAIL"), ("corrected", "PASS"), ("deny-all", "FAIL"), ("wrong-account", "FAIL"), ("superseded", "PASS"), ("missing-evidence", "UNVERIFIED"), ("timeout", "UNVERIFIED")]:

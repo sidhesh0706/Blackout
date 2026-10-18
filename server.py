@@ -162,6 +162,21 @@ class Lab:
             self.record("Requirement accepted" if ok else "Requirement needs review", reason, "contract")
             return self.extraction
 
+    def account_state_evidence(self):
+        """Trusted local adapter reads account state independently of probe credentials.
+
+        This is authoritative only for this application's SQLite account model.
+        Production connectors must provide equivalent trusted evidence.
+        """
+        try:
+            with connection(self.db) as db:
+                row = db.execute("SELECT enabled FROM users WHERE id=?", (SUBJECT,)).fetchone()
+            if row is None or row[0] not in (0, 1):
+                return {"available": False, "subject": SUBJECT, "reason": "Account state missing or unsupported."}
+            return {"available": True, "subject": SUBJECT, "enabled": bool(row[0]), "source": "Trusted local SQLite adapter"}
+        except sqlite3.Error:
+            return {"available": False, "subject": SUBJECT, "reason": "Account state could not be read."}
+
     def login(self, user, key):
         if self.fault == "timeout":
             return 504, {"error": "Synthetic upstream timeout", "fault_injected": True}
@@ -270,8 +285,18 @@ def verify(lab, transport):
     status, _ = request("/lab/login", {"user": SUBJECT, "key": DEMO_KEYS[SUBJECT]})
     expected = lab.contract.get("expected", "deny")
     access = "UNVERIFIED"
-    if ok and status in (200, 403):
-        access = "PASS" if status == (403 if expected == "deny" else 200) else "FAIL"
+    account_state = lab.account_state_evidence()
+    if ok:
+        # A 403 alone can mean an invalid credential, not enforced disablement.
+        # Confirm the declared account restriction through the trusted adapter.
+        if expected == "deny" and status == 200:
+            access = "FAIL"
+        elif account_state.get("available"):
+            state_matches = account_state["enabled"] == (expected == "allow")
+            if not state_matches:
+                access = "FAIL"
+            elif status in (200, 403):
+                access = "PASS" if status == (403 if expected == "deny" else 200) else "FAIL"
     valid_status, valid_data = request("/lab/login", {"user": VALID_USER, "key": DEMO_KEYS[VALID_USER]})
     business = "UNVERIFIED"
     invoice_id = None
@@ -281,9 +306,9 @@ def verify(lab, transport):
         invoice_status, invoice = request("/lab/invoices", {}, valid_data.get("access_token"))
         invoice_id = invoice.get("invoice_id")
         business = "PASS" if invoice_status == 201 and invoice_id else ("FAIL" if invoice_status in (400, 401, 403) else "UNVERIFIED")
-    checks = [{"id": "source", "name": "Authoritative evidence", "verdict": "PASS" if ok else "UNVERIFIED", "detail": validation}, {"id": "access", "name": "Containment requirement", "verdict": access, "detail": f"{SUBJECT}: expected {expected}; observed HTTP {status}."}, {"id": "business", "name": "Legitimate business operation", "verdict": business, "detail": f"Maya Rao created {invoice_id}." if invoice_id else f"Business operation not confirmed. Login HTTP {valid_status}."}]
+    checks = [{"id": "source", "name": "Authoritative evidence", "verdict": "PASS" if ok else "UNVERIFIED", "detail": validation}, {"id": "access", "name": "Containment requirement", "verdict": access, "detail": f"{SUBJECT}: expected {expected}; observed HTTP {status}; trusted account state: {account_state}."}, {"id": "business", "name": "Legitimate business operation", "verdict": business, "detail": f"Maya Rao created {invoice_id}." if invoice_id else f"Business operation not confirmed. Login HTTP {valid_status}."}]
     verdict = "FAIL" if any(c["verdict"] == "FAIL" for c in checks) else ("PASS" if all(c["verdict"] == "PASS" for c in checks) else "UNVERIFIED")
-    run = {"id": "RUN-" + uuid.uuid4().hex[:6].upper(), "at": now(), "verdict": verdict, "duration_ms": round((time.perf_counter()-start)*1000, 2), "phase": lab.phase, "checks": checks, "traces": traces, "contract": dict(lab.contract), "ledger_sha256": digest(lab.ledger_path), "database_sha256": digest(lab.db), "scope": "Only the declared identity-access and invoice checks; not a complete security assessment."}
+    run = {"id": "RUN-" + uuid.uuid4().hex[:6].upper(), "at": now(), "verdict": verdict, "duration_ms": round((time.perf_counter()-start)*1000, 2), "phase": lab.phase, "account_state_evidence": account_state, "checks": checks, "traces": traces, "contract": dict(lab.contract), "ledger_sha256": digest(lab.ledger_path), "database_sha256": digest(lab.db), "scope": "Only the declared identity-access and invoice checks; not a complete security assessment."}
     lab.runs.append(run)
     lab.record("Verification " + verdict, run["id"] + " · " + str(len(traces)) + " application requests observed.", "verify")
     write_json(lab.root / "latest-report.json", run)
