@@ -1,5 +1,9 @@
 # Blackout
 
+[![Tests](https://github.com/sidhesh0706/Blackout/actions/workflows/tests.yml/badge.svg)](https://github.com/sidhesh0706/Blackout/actions/workflows/tests.yml)
+
+Containment verification after recovery · **Team NullSynapse**
+
 **Restore systems. Not compromised access.**
 
 Blackout is a working containment-verification prototype. It tests whether an application restore reverses a security restriction imposed during an incident, even when the application appears healthy.
@@ -71,7 +75,7 @@ The Challenge lab runs eight independently specified scenarios. Every scenario r
 
 ![Observed results for all eight challenge scenarios](docs/screenshots/challenge-lab.png)
 
-**Local validation:** 11 integration tests pass, including the eight-scenario matrix. Browser checks confirmed the PASS → FAIL → PASS workflow, 8/8 expected scenario verdicts, no page JavaScript exceptions, and no document overflow at a 390px viewport. These are synthetic functional checks, not production accuracy measurements. GitHub Actions reruns backend tests on Python 3.11 and 3.13.
+**Validation:** All 11 integration tests pass, including the eight-scenario matrix and an HTTP regression for an enabled account with a changed credential. The browser workflow covers restore, verification and approved correction. These are synthetic functional checks, not production accuracy measurements. GitHub Actions runs the backend tests on Python 3.11 and 3.13.
 
 ## AI interpretation and independent validation
 
@@ -121,6 +125,10 @@ Each browser session receives an isolated lab directory under `.data/`. It conta
 
 `/api/verify` makes real loopback HTTP calls to the application endpoints, using synthetic credentials. Only status codes and redacted response fields enter the traces. The legitimate probe inserts a real invoice row. Restores preserve the ledger and contract files; their SHA-256 values are recorded for comparison.
 
+### Account-disable evidence
+
+A denied credential alone cannot prove that an account is disabled. The local verifier also reads the account enabled flag through a trusted SQLite adapter. An enabled incident account fails the disable requirement even if the probe credential is stale. Missing or unreadable account-state evidence cannot establish PASS. This trust model is specific to the prototype; production integrations need equivalent authoritative application evidence. The HTTP regression test covers a rotated credential and missing account state.
+
 ## What PASS means
 
 - **FAIL:** a validated mandatory check is false, or the legitimate business check fails.
@@ -152,7 +160,7 @@ npm install --no-save playwright
 node scripts/browser-check.cjs
 ```
 
-The browser script expects the app on port 8000. `PLAYWRIGHT_MODULE` can point to an existing package; `BROWSER_CHANNEL` can select another installed Chromium browser. Screenshots go to the ignored `.impeccable/review/` folder. No video is recorded.
+The browser script expects the app on port 8000. `PLAYWRIGHT_MODULE` can point to an existing package; `BROWSER_CHANNEL` can select another installed Chromium browser. Screenshots go to the ignored `.impeccable/review/` folder.
 
 ## Project map
 
@@ -162,7 +170,6 @@ static/                    Responsive UI, self-hosted fonts and icons
 tests/test_blackout.py      HTTP integration and regression tests
 scripts/browser-check.cjs   End-to-end browser checks and screenshots
 docs/screenshots/          Actual application screenshots
-docs/SUBMISSION.md          Submission wording and deck update notes
 .env.example               Optional server-side AI configuration
 ```
 
@@ -175,6 +182,6 @@ Typography uses Manrope and Space Grotesk, distributed under the SIL Open Font L
 
 </details>
 
-### Account-disable evidence
+## Team
 
-A denied credential alone cannot prove that an account is disabled. The local verifier also reads the account enabled flag through a trusted SQLite adapter. An enabled incident account fails the disable requirement even if the probe credential is stale. Missing or unreadable account-state evidence cannot establish PASS. This trust model is specific to the prototype; production integrations need equivalent authoritative application evidence. The HTTP regression test covers a rotated credential and missing account state.
+**NullSynapse** — Sidhesh Panda and Suyash Kumar.
